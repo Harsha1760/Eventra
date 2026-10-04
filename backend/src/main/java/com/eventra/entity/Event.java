@@ -1,0 +1,110 @@
+package com.eventra.entity;
+
+import java.time.LocalDate;
+import java.time.LocalTime;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
+@Entity
+@Table(name = "events")
+public class Event {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private String name;
+
+    private String description;
+
+    private String artist;
+
+    private String category;
+
+    private LocalDate eventDate;
+
+    private LocalTime startTime;
+
+    private LocalTime endTime;
+
+    private String status;
+
+    public Event() {
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public String getArtist() {
+        return artist;
+    }
+
+    public void setArtist(String artist) {
+        this.artist = artist;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
+    public void setCategory(String category) {
+        this.category = category;
+    }
+
+    public LocalDate getEventDate() {
+        return eventDate;
+    }
+
+    public void setEventDate(LocalDate eventDate) {
+        this.eventDate = eventDate;
+    }
+
+    public LocalTime getStartTime() {
+        return startTime;
+    }
+
+    public void setStartTime(LocalTime startTime) {
+        this.startTime = startTime;
+    }
+
+    public LocalTime getEndTime() {
+        return endTime;
+    }
+
+    public void setEndTime(LocalTime endTime) {
+        this.endTime = endTime;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+}
