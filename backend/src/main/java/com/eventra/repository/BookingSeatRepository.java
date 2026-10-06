@@ -1,8 +1,6 @@
-
 package com.eventra.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
-
 import com.eventra.entity.BookingSeat;
 
 public interface BookingSeatRepository
@@ -13,8 +11,9 @@ public interface BookingSeatRepository
             Long eventId,
             String status);
 
-    // Keep the existing method for compatibility with BookingSeatService
     boolean existsBySeatIdAndBookingEventId(
             Long seatId,
             Long eventId);
+
+    boolean existsBySeatId(Long seatId);
 }
