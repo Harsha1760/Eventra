@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.*;
 import com.eventra.dto.BookingRequest;
 import com.eventra.entity.Booking;
 import com.eventra.service.BookingService;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 
 @RestController
 @RequestMapping("/api/bookings")
@@ -43,6 +45,11 @@ public class BookingController {
     public List<Booking> getAllBookings() {
         return bookingService.getAllBookings();
     }
+    
+@PutMapping("/{bookingId}/cancel")
+public Booking cancelBooking(@PathVariable Long bookingId) {
+    return bookingService.cancelBooking(bookingId);
+}
 
     @GetMapping("/seat-check")
     public boolean isSeatBooked(
@@ -51,6 +58,12 @@ public class BookingController {
 
         return bookingService.isSeatBooked(seatId, eventId);
     }
+    @GetMapping("/user/{userId}")
+public List<Booking> getBookingsByUserId(
+        @PathVariable Long userId) {
+
+    return bookingService.getBookingsByUserId(userId);
+}
 
     public record BookingResponse(
             Long bookingId,

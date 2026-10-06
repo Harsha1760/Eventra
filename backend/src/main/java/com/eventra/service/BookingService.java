@@ -38,120 +38,167 @@ public class BookingService {
             UserRepository userRepository,
             EventRepository eventRepository,
             SeatRepository seatRepository) {
-
         this.bookingRepository = bookingRepository;
         this.bookingSeatRepository = bookingSeatRepository;
         this.userRepository = userRepository;
         this.eventRepository = eventRepository;
         this.seatRepository = seatRepository;
     }
-public List<Booking> getAllBookings() {
-    return bookingRepository.findAll();
-}
 
-public boolean isSeatBooked(Long seatId, Long eventId) {
-    return bookingSeatRepository
-            .existsBySeatIdAndBookingEventId(seatId, eventId);
-}
-    
-@Transactional
-public Booking createBooking(BookingRequest request) {
-
-    // 1. Validate required fields
-    if (request == null
-            || request.getUserId() == null
-            || request.getEventId() == null
-            || request.getSeatIds() == null
-            || request.getSeatIds().isEmpty()) {
-        throw new IllegalArgumentException(
-                "User, event and at least one seat are required");
+    // Get all bookings
+    public List<Booking> getAllBookings() {
+        return bookingRepository.findAll();
     }
 
-    // 2. Validate seat IDs
-    Set<Long> uniqueSeatIds = new HashSet<>(request.getSeatIds());
+    // Get booking history for a specific user
+    public List<Booking> getBookingsByUserId(Long userId) {
+        if (userId == null) {
+            throw new IllegalArgumentException("User ID is required");
+        }
 
-    if (uniqueSeatIds.size() != request.getSeatIds().size()
-            || uniqueSeatIds.contains(null)) {
-        throw new IllegalArgumentException(
-                "Seat selection contains duplicate or invalid IDs");
+        if (!userRepository.existsById(userId)) {
+            throw new NoSuchElementException(
+                    "User not found with ID: " + userId);
+        }
+
+        return bookingRepository.findByUserId(userId);
     }
 
-    // 3. Find user and event
-    User user = userRepository.findById(request.getUserId())
-            .orElseThrow(() -> new NoSuchElementException(
-                    "User not found with ID: " + request.getUserId()));
-
-    Event event = eventRepository.findById(request.getEventId())
-            .orElseThrow(() -> new NoSuchElementException(
-                    "Event not found with ID: " + request.getEventId()));
-
-    if (event.getVenue() == null) {
-        throw new IllegalStateException(
-                "Event does not have a venue");
-    }
-
-    // 4. Find all requested seats
-    List<Seat> seats = seatRepository.findAllById(uniqueSeatIds);
-
-    if (seats.size() != uniqueSeatIds.size()) {
-        throw new NoSuchElementException(
-                "One or more selected seats do not exist");
-    }
-
-    // 5. Validate seats and calculate total
-    double totalAmount = 0.0;
-
-    for (Seat seat : seats) {
-
-        if (seat.getVenue() == null
-                || !seat.getVenue().getId()
-                        .equals(event.getVenue().getId())) {
+    // Check whether a seat is currently booked for an event
+    public boolean isSeatBooked(Long seatId, Long eventId) {
+        if (seatId == null || eventId == null) {
             throw new IllegalArgumentException(
-                    "Seat " + seat.getSeatNumber()
-                            + " does not belong to this event's venue");
+                    "Seat ID and event ID are required");
         }
 
-        if (seat.getPrice() == null || seat.getPrice() < 0) {
-            throw new IllegalStateException(
-                    "Seat " + seat.getSeatNumber()
-                            + " has an invalid price");
-        }
-
-        boolean alreadyBooked =
-                bookingSeatRepository.existsBySeatIdAndBookingEventId(
-                        seat.getId(), event.getId());
-
-        if (alreadyBooked) {
-            throw new IllegalStateException(
-                    "Seat " + seat.getSeatNumber()
-                            + " is already booked for this event");
-        }
-
-        totalAmount += seat.getPrice();
+        return bookingSeatRepository
+                .existsBySeatIdAndBookingEventIdAndBookingStatus(
+                        seatId, eventId, "CONFIRMED");
     }
 
-    // 6. Save the booking
-    Booking booking = new Booking();
-    booking.setUser(user);
-    booking.setEvent(event);
-    booking.setBookingDate(LocalDateTime.now());
-    booking.setTotalAmount(totalAmount);
-    booking.setStatus("CONFIRMED");
+    // Create a booking
+    @Transactional
+    public Booking createBooking(BookingRequest request) {
 
-    Booking savedBooking = bookingRepository.save(booking);
+        // 1. Validate required fields
+        if (request == null
+                || request.getUserId() == null
+                || request.getEventId() == null
+                || request.getSeatIds() == null
+                || request.getSeatIds().isEmpty()) {
+            throw new IllegalArgumentException(
+                    "User, event and at least one seat are required");
+        }
 
-    // 7. Save the seat associations
-    List<BookingSeat> bookingSeats = new ArrayList<>();
+        // 2. Validate seat IDs
+        Set<Long> uniqueSeatIds = new HashSet<>(request.getSeatIds());
 
-    for (Seat seat : seats) {
-        BookingSeat bookingSeat = new BookingSeat();
-        bookingSeat.setBooking(savedBooking);
-        bookingSeat.setSeat(seat);
-        bookingSeats.add(bookingSeat);
+        if (uniqueSeatIds.size() != request.getSeatIds().size()
+                || uniqueSeatIds.contains(null)) {
+            throw new IllegalArgumentException(
+                    "Seat selection contains duplicate or invalid IDs");
+        }
+
+        // 3. Find user and event
+        User user = userRepository.findById(request.getUserId())
+                .orElseThrow(() -> new NoSuchElementException(
+                        "User not found with ID: " + request.getUserId()));
+
+        Event event = eventRepository.findById(request.getEventId())
+                .orElseThrow(() -> new NoSuchElementException(
+                        "Event not found with ID: " + request.getEventId()));
+
+        if (event.getVenue() == null) {
+            throw new IllegalStateException(
+                    "Event does not have a venue");
+        }
+
+        // 4. Find all requested seats
+        List<Seat> seats = seatRepository.findAllById(uniqueSeatIds);
+
+        if (seats.size() != uniqueSeatIds.size()) {
+            throw new NoSuchElementException(
+                    "One or more selected seats do not exist");
+        }
+
+        // 5. Validate seats and calculate total amount
+        double totalAmount = 0.0;
+
+        for (Seat seat : seats) {
+
+            if (seat.getVenue() == null
+                    || !seat.getVenue().getId()
+                            .equals(event.getVenue().getId())) {
+                throw new IllegalArgumentException(
+                        "Seat " + seat.getSeatNumber()
+                                + " does not belong to this event's venue");
+            }
+
+            if (seat.getPrice() == null || seat.getPrice() < 0) {
+                throw new IllegalStateException(
+                        "Seat " + seat.getSeatNumber()
+                                + " has an invalid price");
+            }
+
+            boolean alreadyBooked = bookingSeatRepository
+                    .existsBySeatIdAndBookingEventIdAndBookingStatus(
+                            seat.getId(), event.getId(), "CONFIRMED");
+
+            if (alreadyBooked) {
+                throw new IllegalStateException(
+                        "Seat " + seat.getSeatNumber()
+                                + " is already booked for this event");
+            }
+
+            totalAmount += seat.getPrice();
+        }
+
+        // 6. Create and save the booking
+        Booking booking = new Booking();
+        booking.setUser(user);
+        booking.setEvent(event);
+        booking.setBookingDate(LocalDateTime.now());
+        booking.setTotalAmount(totalAmount);
+        booking.setStatus("CONFIRMED");
+
+        Booking savedBooking = bookingRepository.save(booking);
+
+        // 7. Save the seat associations
+        List<BookingSeat> bookingSeats = new ArrayList<>();
+
+        for (Seat seat : seats) {
+            BookingSeat bookingSeat = new BookingSeat();
+            bookingSeat.setBooking(savedBooking);
+            bookingSeat.setSeat(seat);
+
+            bookingSeats.add(bookingSeat);
+        }
+
+        bookingSeatRepository.saveAll(bookingSeats);
+
+        return savedBooking;
     }
 
-    bookingSeatRepository.saveAll(bookingSeats);
+    // Cancel a confirmed booking
+    @Transactional
+    public Booking cancelBooking(Long bookingId) {
 
-    return savedBooking;
-}
+        if (bookingId == null) {
+            throw new IllegalArgumentException(
+                    "Booking ID is required");
+        }
+
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new NoSuchElementException(
+                        "Booking not found with ID: " + bookingId));
+
+        if (!"CONFIRMED".equals(booking.getStatus())) {
+            throw new IllegalStateException(
+                    "Only confirmed bookings can be cancelled");
+        }
+
+        booking.setStatus("CANCELLED");
+
+        return bookingRepository.save(booking);
+    }
 }
