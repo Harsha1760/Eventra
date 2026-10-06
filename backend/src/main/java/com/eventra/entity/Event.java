@@ -7,6 +7,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 @Entity
@@ -32,6 +34,9 @@ public class Event {
     private LocalTime endTime;
 
     private String status;
+    @ManyToOne
+    @JoinColumn(name = "venue_id")
+    private Venue venue;
 
     public Event() {
     }
@@ -107,4 +112,10 @@ public class Event {
     public void setStatus(String status) {
         this.status = status;
     }
+    public Venue getVenue() {
+    return venue;
+}
+public void setVenue(Venue venue) {
+    this.venue = venue;
+}
 }

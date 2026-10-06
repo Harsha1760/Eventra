@@ -1,5 +1,6 @@
 package com.eventra.service;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.stereotype.Service;
@@ -7,7 +8,6 @@ import org.springframework.stereotype.Service;
 import com.eventra.entity.User;
 import com.eventra.exception.EmailAlreadyExistsException;
 import com.eventra.repository.UserRepository;
-
 @Service
 public class UserService {
 
@@ -29,5 +29,8 @@ public class UserService {
     user.setRole("USER");
 
     return userRepository.save(user);
+}
+public List<User> getAllUsers() {
+    return userRepository.findAll();
 }
 }

@@ -4,11 +4,12 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
+import java.util.List;
 import com.eventra.entity.User;
 import com.eventra.service.UserService;
-
+import org.springframework.web.bind.annotation.GetMapping;
 import jakarta.validation.Valid;
+
 
 @RestController
 @RequestMapping("/api/users")
@@ -24,4 +25,8 @@ public class UserController {
     public User registerUser(@Valid @RequestBody User user) {
         return userService.registerUser(user);
     }
+    @GetMapping
+    public List<User> getAllUsers() {
+    return userService.getAllUsers();
+}
 }  
