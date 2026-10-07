@@ -1,10 +1,10 @@
-
 package com.eventra.service;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.eventra.entity.User;
@@ -17,15 +17,20 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final BookingRepository bookingRepository;
+    private final PasswordEncoder passwordEncoder;
 
     public UserService(
             UserRepository userRepository,
-            BookingRepository bookingRepository) {
+            BookingRepository bookingRepository,
+            PasswordEncoder passwordEncoder) {
+
         this.userRepository = userRepository;
         this.bookingRepository = bookingRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public User registerUser(User user) {
+
         Optional<User> existingUser =
                 userRepository.findByEmail(user.getEmail());
 
@@ -35,6 +40,12 @@ public class UserService {
         }
 
         user.setRole("USER");
+
+        // Hash password before saving to database
+        user.setPassword(
+                passwordEncoder.encode(user.getPassword())
+        );
+
         return userRepository.save(user);
     }
 
@@ -50,6 +61,7 @@ public class UserService {
     }
 
     public User updateUser(Long id, User updatedUser) {
+
         User existingUser = getUserById(id);
 
         Optional<User> userWithEmail =
@@ -57,6 +69,7 @@ public class UserService {
 
         if (userWithEmail.isPresent()
                 && !userWithEmail.get().getId().equals(id)) {
+
             throw new EmailAlreadyExistsException(
                     "Email already registered");
         }
@@ -68,6 +81,7 @@ public class UserService {
     }
 
     public void deleteUser(Long id) {
+
         User user = getUserById(id);
 
         if (bookingRepository.existsByUserId(id)) {
