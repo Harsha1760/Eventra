@@ -1,0 +1,616 @@
+/* ==========================================================================
+   EVENTRA DESIGN SYSTEM
+   Editorial by Day. Theatre by Night.
+   ========================================================================== */
+
+:root {
+  /* Editorial Foundation (Normal Mode) */
+  --bg-paper: #F8F7F4;
+  --bg-surface: #FFFFFF;
+  --bg-subtle: #F1EFEA;
+  --bg-muted: #EAE6DF;
+  
+  --ink-primary: #121214;
+  --ink-secondary: #525157;
+  --ink-muted: #7E7C85;
+  --ink-faint: #A5A3AC;
+  
+  --border-default: #E2DFD7;
+  --border-subtle: #ECEAE4;
+  --border-strong: #C8C5BD;
+  
+  /* Restrained Vermillion Accent */
+  --accent: #D83A20;
+  --accent-hover: #BF2F18;
+  --accent-active: #A82813;
+  --accent-subtle: #FDF3F1;
+  --accent-border: #F6C6BE;
+  --accent-glow: rgba(216, 58, 32, 0.12);
+
+  /* Status Colors */
+  --status-success-bg: #EBF7EE;
+  --status-success-text: #1B6634;
+  --status-success-border: #BBE3C6;
+  
+  --status-cancel-bg: #FDF1F0;
+  --status-cancel-text: #962817;
+  --status-cancel-border: #F5C4BD;
+  
+  --status-warning-bg: #FFF8E6;
+  --status-warning-text: #8A5A00;
+  --status-warning-border: #FFE299;
+
+  /* Typography */
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+
+  /* Layout & Elevations */
+  --radius-xs: 3px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
+  
+  --shadow-sm: 0 1px 2px rgba(18, 18, 20, 0.04);
+  --shadow-md: 0 4px 12px rgba(18, 18, 20, 0.06);
+  --shadow-lg: 0 12px 32px rgba(18, 18, 20, 0.08);
+  --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.08);
+
+  /* Max Widths */
+  --container-max: 1240px;
+  --container-narrow: 860px;
+  --nav-height: 72px;
+}
+
+/* Theatre Mode Palette (Curated Night / Booking Experience) */
+.theatre-mode,
+[data-theme="theatre"] {
+  --bg-paper: #09090C;
+  --bg-surface: #131318;
+  --bg-subtle: #1C1C22;
+  --bg-muted: #26262E;
+  
+  --ink-primary: #F6F6F8;
+  --ink-secondary: #A6A5AE;
+  --ink-muted: #74737E;
+  --ink-faint: #4B4A54;
+  
+  --border-default: rgba(255, 255, 255, 0.09);
+  --border-subtle: rgba(255, 255, 255, 0.05);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  
+  --accent: #E53E24;
+  --accent-hover: #F04C33;
+  --accent-subtle: rgba(229, 62, 36, 0.12);
+  --accent-border: rgba(229, 62, 36, 0.35);
+  --accent-glow: rgba(229, 62, 36, 0.25);
+  
+  --shadow-glass: 0 12px 40px rgba(0, 0, 0, 0.6);
+  
+  background-color: var(--bg-paper);
+  color: var(--ink-primary);
+}
+
+/* ==========================================================================
+   Base Styles & Reset
+   ========================================================================== */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-paper);
+  color: var(--ink-primary);
+  line-height: 1.55;
+  min-height: 100vh;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Typography Hierarchy */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  color: var(--ink-primary);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+h1 { font-size: clamp(2.25rem, 4vw + 1rem, 3.75rem); font-weight: 500; }
+h2 { font-size: clamp(1.75rem, 2.5vw + 0.75rem, 2.5rem); font-weight: 500; }
+h3 { font-size: clamp(1.25rem, 1.5vw + 0.5rem, 1.75rem); }
+h4 { font-size: 1.2rem; }
+
+p {
+  color: var(--ink-secondary);
+  line-height: 1.6;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+button, input, select, textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+/* Technical / Tabular Font treatment */
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ==========================================================================
+   Layout Containers
+   ========================================================================== */
+
+.container {
+  width: 100%;
+  max-width: var(--container-max);
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 24px;
+  padding-right: 24px;
+}
+
+.container-narrow {
+  width: 100%;
+  max-width: var(--container-narrow);
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+/* ==========================================================================
+   Selective Glassmorphism Panels
+   ========================================================================== */
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: var(--shadow-glass);
+}
+
+.theatre-mode .glass-panel,
+.theatre-glass {
+  background: rgba(20, 20, 26, 0.72);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: var(--shadow-glass);
+}
+
+/* ==========================================================================
+   Buttons
+   ========================================================================== */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--font-sans);
+  font-size: 0.925rem;
+  font-weight: 500;
+  padding: 10px 20px;
+  border-radius: var(--radius-xs);
+  transition: all 0.18s ease;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+  user-select: none;
+}
+
+.btn-primary {
+  background-color: var(--accent);
+  color: #FFFFFF;
+}
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--accent-hover);
+  transform: translateY(-1px);
+}
+.btn-primary:active:not(:disabled) {
+  background-color: var(--accent-active);
+  transform: translateY(0);
+}
+
+.btn-secondary {
+  background-color: var(--bg-subtle);
+  color: var(--ink-primary);
+  border: 1px solid var(--border-default);
+}
+.btn-secondary:hover:not(:disabled) {
+  background-color: var(--bg-muted);
+  border-color: var(--border-strong);
+}
+
+.btn-outline {
+  background-color: transparent;
+  color: var(--ink-primary);
+  border: 1px solid var(--border-default);
+}
+.btn-outline:hover:not(:disabled) {
+  border-color: var(--ink-primary);
+  background-color: rgba(18, 18, 20, 0.02);
+}
+
+.btn-ghost {
+  background-color: transparent;
+  color: var(--ink-secondary);
+}
+.btn-ghost:hover:not(:disabled) {
+  color: var(--ink-primary);
+  background-color: var(--bg-subtle);
+}
+
+.btn-danger {
+  background-color: var(--status-cancel-bg);
+  color: var(--status-cancel-text);
+  border: 1px solid var(--status-cancel-border);
+}
+.btn-danger:hover:not(:disabled) {
+  background-color: #F8E2E0;
+}
+
+.btn-sm {
+  padding: 6px 14px;
+  font-size: 0.85rem;
+}
+
+.btn-lg {
+  padding: 14px 28px;
+  font-size: 1.05rem;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* ==========================================================================
+   Form Controls
+   ========================================================================== */
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 18px;
+  text-align: left;
+}
+
+.form-label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--ink-secondary);
+  letter-spacing: 0.01em;
+}
+
+.form-input,
+.form-select,
+.form-textarea {
+  width: 100%;
+  padding: 10px 14px;
+  background-color: var(--bg-surface);
+  color: var(--ink-primary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xs);
+  font-size: 0.95rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.theatre-mode .form-input,
+.theatre-mode .form-select,
+.theatre-mode .form-textarea {
+  background-color: var(--bg-subtle);
+  border-color: var(--border-default);
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.form-error {
+  font-size: 0.82rem;
+  color: #D83A20;
+  margin-top: 4px;
+}
+
+/* ==========================================================================
+   Badges & Pills
+   ========================================================================== */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: var(--radius-xs);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+}
+
+.badge-open,
+.badge-confirmed {
+  background-color: var(--status-success-bg);
+  color: var(--status-success-text);
+  border-color: var(--status-success-border);
+}
+
+.badge-cancelled {
+  background-color: var(--status-cancel-bg);
+  color: var(--status-cancel-text);
+  border-color: var(--status-cancel-border);
+}
+
+.badge-subtle {
+  background-color: var(--bg-subtle);
+  color: var(--ink-secondary);
+  border-color: var(--border-default);
+}
+
+.badge-accent {
+  background-color: var(--accent-subtle);
+  color: var(--accent);
+  border-color: var(--accent-border);
+}
+
+/* ==========================================================================
+   Core Editorial EventRow Component Styling
+   ========================================================================== */
+
+.event-row {
+  display: grid;
+  grid-template-columns: 85px 1fr auto auto;
+  align-items: center;
+  gap: 24px;
+  padding: 22px 20px;
+  background-color: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
+  transition: all 0.18s ease;
+  text-align: left;
+}
+
+.event-row:hover {
+  background-color: #FAF9F6;
+  border-color: var(--border-default);
+  transform: translateX(3px);
+}
+
+.event-row-date {
+  font-family: var(--font-mono);
+  text-align: center;
+  line-height: 1.1;
+  padding-right: 12px;
+  border-right: 1px solid var(--border-subtle);
+}
+
+.event-row-date-day {
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: var(--ink-primary);
+  display: block;
+}
+
+.event-row-date-month {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.event-row-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.event-row-title {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 500;
+  color: var(--ink-primary);
+  line-height: 1.25;
+}
+
+.event-row-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 0.88rem;
+  color: var(--ink-secondary);
+}
+
+.event-row-price {
+  font-family: var(--font-mono);
+  text-align: right;
+  padding-left: 12px;
+}
+
+.event-row-price-label {
+  font-size: 0.72rem;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  display: block;
+}
+
+.event-row-price-val {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--ink-primary);
+}
+
+@media (max-width: 768px) {
+  .event-row {
+    grid-template-columns: 70px 1fr;
+    grid-template-areas: 
+      "date info"
+      "date actions";
+    gap: 12px;
+    padding: 16px 12px;
+  }
+  .event-row-date { grid-area: date; }
+  .event-row-info { grid-area: info; }
+  .event-row-actions { 
+    grid-area: actions; 
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between; 
+    padding-top: 6px; 
+  }
+}
+
+/* ==========================================================================
+   Theatre Mode Seating Architecture
+   ========================================================================== */
+
+.theatre-stage-curve {
+  position: relative;
+  width: 70%;
+  max-width: 540px;
+  height: 28px;
+  margin: 0 auto 40px auto;
+  border-top: 2px solid rgba(255, 255, 255, 0.4);
+  border-radius: 50% 50% 0 0;
+  text-align: center;
+  box-shadow: 0 -8px 24px rgba(255, 255, 255, 0.08);
+}
+
+.theatre-stage-label {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.25em;
+  color: rgba(255, 255, 255, 0.45);
+  background-color: var(--bg-paper);
+  padding: 0 16px;
+  text-transform: uppercase;
+}
+
+/* Seat Units */
+.seat-button {
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  user-select: none;
+}
+
+.seat-available {
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #D4D3D9;
+}
+.seat-available:hover {
+  background-color: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.4);
+  transform: scale(1.12);
+}
+
+.seat-selected {
+  background-color: var(--accent) !important;
+  border: 1px solid #FF7B68 !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 0 14px var(--accent-glow);
+  transform: scale(1.14);
+}
+
+.seat-booked {
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.15);
+  cursor: not-allowed;
+}
+
+/* ==========================================================================
+   Ticket Stub Representation
+   ========================================================================== */
+
+.ticket-stub {
+  position: relative;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+
+.ticket-stub-perforation {
+  position: relative;
+  border-top: 1px dashed var(--border-default);
+  margin: 16px 0;
+}
+.ticket-stub-perforation::before,
+.ticket-stub-perforation::after {
+  content: '';
+  position: absolute;
+  top: -10px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: var(--bg-paper);
+}
+.ticket-stub-perforation::before { left: -10px; border-right: 1px solid var(--border-default); }
+.ticket-stub-perforation::after { right: -10px; border-left: 1px solid var(--border-default); }
+
+/* Accessibility & Preferences */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
