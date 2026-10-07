@@ -1,12 +1,15 @@
 import { createContext, useState, useEffect, useCallback } from 'react';
 import { storage } from '../utils/storage';
-import { authService } from '../services/authService';
+import { authService, normalizeRole, normalizeUser } from '../services/authService';
 
 export const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => storage.getToken());
-  const [user, setUser] = useState(() => storage.getUser());
+  const [user, setUser] = useState(() => {
+    const rawUser = storage.getUser();
+    return rawUser ? normalizeUser(rawUser) : null;
+  });
   const [loading, setLoading] = useState(true);
 
   const logout = useCallback(() => {
@@ -20,8 +23,10 @@ export function AuthProvider({ children }) {
     const storedToken = storage.getToken();
     const storedUser = storage.getUser();
     if (storedToken && storedUser) {
+      const normalized = normalizeUser(storedUser);
+      storage.setUser(normalized);
       setToken(storedToken);
-      setUser(storedUser);
+      setUser(normalized);
     } else {
       storage.clearAuth();
       setToken(null);
@@ -58,14 +63,14 @@ export function AuthProvider({ children }) {
   };
 
   const updateUserProfile = (updatedFields) => {
-    const updatedUser = { ...user, ...updatedFields };
+    const updatedUser = normalizeUser({ ...user, ...updatedFields });
     storage.setUser(updatedUser);
     setUser(updatedUser);
   };
 
   const isAuthenticated = Boolean(token && user);
   const isAdmin = Boolean(
-    user && (user.role === 'ADMIN' || user.role === 'ROLE_ADMIN')
+    user && (normalizeRole(user.role) === 'ADMIN')
   );
 
   const value = {

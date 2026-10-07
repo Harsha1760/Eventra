@@ -3,7 +3,7 @@ import { seatService } from '../../services/seatService';
 import { venueService } from '../../services/venueService';
 import { useToast } from '../../hooks/useToast';
 import { formatCurrency } from '../../utils/formatters';
-import { Plus, Edit2, Trash2, X } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Layers, AlertCircle } from 'lucide-react';
 
 export function ManageSeatsPage() {
   const { showToast } = useToast();
@@ -12,17 +12,28 @@ export function ManageSeatsPage() {
   const [selectedVenueFilter, setSelectedVenueFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
 
-  // Modal State
+  // Single-Seat Modal State
   const [modalOpen, setModalOpen] = useState(false);
   const [editingSeat, setEditingSeat] = useState(null);
   const [formLoading, setFormLoading] = useState(false);
 
-  // Form Fields
+  // Single-Seat Form Fields
   const [seatNumber, setSeatNumber] = useState('');
   const [section, setSection] = useState('VIP');
   const [seatType, setSeatType] = useState('Reserved');
   const [price, setPrice] = useState('999');
   const [venueId, setVenueId] = useState('');
+
+  // Bulk Create Modal State
+  const [bulkModalOpen, setBulkModalOpen] = useState(false);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkVenueId, setBulkVenueId] = useState('');
+  const [bulkCategory, setBulkCategory] = useState('PREMIUM');
+  const [bulkRowFrom, setBulkRowFrom] = useState('A');
+  const [bulkRowTo, setBulkRowTo] = useState('C');
+  const [bulkSeatsPerRow, setBulkSeatsPerRow] = useState('10');
+  const [bulkPrice, setBulkPrice] = useState('750');
+  const [bulkError, setBulkError] = useState(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -33,10 +44,11 @@ export function ManageSeatsPage() {
       ]);
       setSeats(Array.isArray(seatsData) ? seatsData : []);
       setVenues(Array.isArray(venuesData) ? venuesData : []);
-      if (venuesData?.length > 0 && !venueId) {
-        setVenueId(String(venuesData[0].id));
+      if (venuesData?.length > 0) {
+        if (!venueId) setVenueId(String(venuesData[0].id));
+        if (!bulkVenueId) setBulkVenueId(String(venuesData[0].id));
       }
-    } catch (err) {
+    } catch (_err) {
       showToast('Error loading seat inventory', 'error');
     } finally {
       setLoading(false);
@@ -55,6 +67,17 @@ export function ManageSeatsPage() {
     setPrice('999');
     setVenueId(venues[0]?.id ? String(venues[0].id) : '');
     setModalOpen(true);
+  };
+
+  const openBulkModal = () => {
+    setBulkError(null);
+    setBulkCategory('PREMIUM');
+    setBulkRowFrom('A');
+    setBulkRowTo('C');
+    setBulkSeatsPerRow('10');
+    setBulkPrice('750');
+    setBulkVenueId(venues[0]?.id ? String(venues[0].id) : '');
+    setBulkModalOpen(true);
   };
 
   const openEditModal = (seat) => {
@@ -101,6 +124,72 @@ export function ManageSeatsPage() {
     }
   };
 
+  // Live Bulk Preview Calculations
+  const cleanFrom = (bulkRowFrom || '').trim().toUpperCase();
+  const cleanTo = (bulkRowTo || '').trim().toUpperCase();
+  const seatsPerNum = parseInt(bulkSeatsPerRow, 10) || 0;
+  const priceNum = parseFloat(bulkPrice) || 0;
+
+  const isValidRowRange =
+    cleanFrom.length === 1 &&
+    cleanTo.length === 1 &&
+    cleanFrom >= 'A' &&
+    cleanFrom <= 'Z' &&
+    cleanTo >= 'A' &&
+    cleanTo <= 'Z' &&
+    cleanFrom.charCodeAt(0) <= cleanTo.charCodeAt(0);
+
+  const rowCount = isValidRowRange
+    ? cleanTo.charCodeAt(0) - cleanFrom.charCodeAt(0) + 1
+    : 0;
+  const totalBulkSeats = rowCount * Math.max(0, seatsPerNum);
+
+  const handleBulkSubmit = async (e) => {
+    e.preventDefault();
+    setBulkError(null);
+
+    if (!bulkVenueId) {
+      setBulkError('Please select a venue.');
+      return;
+    }
+    if (!isValidRowRange) {
+      setBulkError('Row range must be valid letters from A to Z where Row From <= Row To.');
+      return;
+    }
+    if (seatsPerNum <= 0) {
+      setBulkError('Seats per row must be greater than zero.');
+      return;
+    }
+    if (priceNum <= 0) {
+      setBulkError('Price per seat must be greater than zero.');
+      return;
+    }
+
+    setBulkLoading(true);
+    const payload = {
+      venueId: Number(bulkVenueId),
+      category: bulkCategory.trim(),
+      rowFrom: cleanFrom,
+      rowTo: cleanTo,
+      seatsPerRow: seatsPerNum,
+      price: priceNum,
+    };
+
+    try {
+      const created = await seatService.createSeatsBulk(payload);
+      const count = Array.isArray(created) ? created.length : totalBulkSeats;
+      showToast(`Successfully generated ${count} seats in bulk!`, 'success');
+      setBulkModalOpen(false);
+      loadData();
+    } catch (err) {
+      const msg = err.message || 'Bulk creation failed';
+      setBulkError(msg);
+      showToast(msg, 'error');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
   const handleDelete = async (seatId) => {
     if (!window.confirm('Delete this seat record?')) return;
     try {
@@ -134,11 +223,11 @@ export function ManageSeatsPage() {
         <div>
           <h1 style={{ fontSize: '2rem', margin: 0 }}>Manage Seats & Tiers</h1>
           <p style={{ color: 'var(--ink-secondary)', marginTop: '4px' }}>
-            Venue seat assignments and pricing tiers.
+            Venue seat assignments, tiered matrices, and bulk generation.
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
           {/* Venue filter */}
           <select
             value={selectedVenueFilter}
@@ -154,6 +243,13 @@ export function ManageSeatsPage() {
             ))}
           </select>
 
+          {/* Bulk Generation CTA */}
+          <button onClick={openBulkModal} className="btn btn-secondary btn-sm" title="Generate rows of seats in batch">
+            <Layers size={15} style={{ color: 'var(--accent)' }} />
+            <span>Bulk Create Seats</span>
+          </button>
+
+          {/* Single Seat CTA */}
           <button onClick={openCreateModal} className="btn btn-primary btn-sm">
             <Plus size={16} />
             <span>New Seat</span>
@@ -339,6 +435,237 @@ export function ManageSeatsPage() {
                 </button>
                 <button type="submit" disabled={formLoading} className="btn btn-primary btn-sm">
                   {formLoading ? 'Saving...' : editingSeat ? 'Save Changes' : 'Create Seat'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Create Modal */}
+      {bulkModalOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(18, 18, 20, 0.65)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '20px',
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: 'var(--bg-surface)',
+              border: '1px solid var(--border-default)',
+              borderRadius: 'var(--radius-sm)',
+              maxWidth: '520px',
+              width: '100%',
+              padding: '28px',
+              boxShadow: 'var(--shadow-lg)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: 'var(--radius-xs)',
+                    backgroundColor: 'var(--accent-subtle)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'var(--accent)',
+                  }}
+                >
+                  <Layers size={18} />
+                </div>
+                <h3 style={{ margin: 0, fontSize: '1.3rem' }}>
+                  Bulk Create Seats
+                </h3>
+              </div>
+              <button
+                onClick={() => setBulkModalOpen(false)}
+                style={{ color: 'var(--ink-muted)', background: 'transparent', border: 'none', cursor: 'pointer' }}
+                aria-label="Close modal"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <p style={{ fontSize: '0.86rem', color: 'var(--ink-secondary)', marginBottom: '20px' }}>
+              Generate complete rows of tiered seats for a venue in a single all-or-nothing batch.
+            </p>
+
+            {bulkError && (
+              <div
+                style={{
+                  backgroundColor: 'var(--status-cancel-bg)',
+                  border: '1px solid var(--status-cancel-border)',
+                  borderRadius: 'var(--radius-xs)',
+                  padding: '10px 14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  color: 'var(--status-cancel-text)',
+                  fontSize: '0.86rem',
+                  marginBottom: '18px',
+                }}
+              >
+                <AlertCircle size={16} style={{ flexShrink: 0 }} />
+                <span>{bulkError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleBulkSubmit}>
+              <div className="form-group">
+                <label className="form-label">Venue *</label>
+                <select
+                  required
+                  value={bulkVenueId}
+                  onChange={(e) => setBulkVenueId(e.target.value)}
+                  className="form-select"
+                >
+                  <option value="">Select target venue...</option>
+                  {venues.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.name} ({v.location})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '16px' }}>
+                <div className="form-group">
+                  <label className="form-label">Category / Tier *</label>
+                  <select
+                    value={bulkCategory}
+                    onChange={(e) => setBulkCategory(e.target.value)}
+                    className="form-select"
+                  >
+                    <option value="PREMIUM">PREMIUM</option>
+                    <option value="VIP">VIP</option>
+                    <option value="STANDARD">STANDARD</option>
+                    <option value="BALCONY">BALCONY</option>
+                    <option value="EXECUTIVE">EXECUTIVE</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Price per Seat (INR) *</label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    step="any"
+                    value={bulkPrice}
+                    onChange={(e) => setBulkPrice(e.target.value)}
+                    className="form-input"
+                    placeholder="750"
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px' }}>
+                <div className="form-group">
+                  <label className="form-label">Row From *</label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={1}
+                    value={bulkRowFrom}
+                    onChange={(e) => setBulkRowFrom(e.target.value.toUpperCase())}
+                    className="form-input font-mono"
+                    placeholder="A"
+                    style={{ textAlign: 'center', textTransform: 'uppercase' }}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Row To *</label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={1}
+                    value={bulkRowTo}
+                    onChange={(e) => setBulkRowTo(e.target.value.toUpperCase())}
+                    className="form-input font-mono"
+                    placeholder="C"
+                    style={{ textAlign: 'center', textTransform: 'uppercase' }}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Seats / Row *</label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    max="100"
+                    value={bulkSeatsPerRow}
+                    onChange={(e) => setBulkSeatsPerRow(e.target.value)}
+                    className="form-input font-mono"
+                    placeholder="10"
+                    style={{ textAlign: 'center' }}
+                  />
+                </div>
+              </div>
+
+              {/* Live Preview / Count Card */}
+              <div
+                style={{
+                  backgroundColor: 'var(--bg-subtle)',
+                  border: '1px solid var(--border-default)',
+                  borderRadius: 'var(--radius-xs)',
+                  padding: '14px 16px',
+                  marginTop: '6px',
+                  marginBottom: '20px',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <span className="font-mono" style={{ fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--ink-muted)' }}>
+                    Batch Preview
+                  </span>
+                  {isValidRowRange && (
+                    <span className="font-mono" style={{ fontSize: '0.78rem', color: 'var(--ink-secondary)' }}>
+                      Rows {cleanFrom} through {cleanTo} ({rowCount} {rowCount === 1 ? 'row' : 'rows'})
+                    </span>
+                  )}
+                </div>
+
+                {isValidRowRange && totalBulkSeats > 0 ? (
+                  <div style={{ fontSize: '0.92rem', color: 'var(--ink-primary)', fontWeight: 500 }}>
+                    This will create <strong style={{ color: 'var(--accent)' }}>{totalBulkSeats}</strong> {bulkCategory} seats at <strong className="font-mono">{formatCurrency(priceNum)}</strong> each.
+                    <div style={{ fontSize: '0.78rem', color: 'var(--ink-muted)', marginTop: '4px' }}>
+                      Range: <span className="font-mono">{cleanFrom}1–{cleanFrom}{seatsPerNum}</span> ... <span className="font-mono">{cleanTo}1–{cleanTo}{seatsPerNum}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: '0.84rem', color: 'var(--ink-muted)', fontStyle: 'italic' }}>
+                    Enter valid row letters (A–Z) and positive seat count to preview batch.
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <button
+                  type="button"
+                  onClick={() => setBulkModalOpen(false)}
+                  className="btn btn-outline btn-sm"
+                  disabled={bulkLoading}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={bulkLoading || !isValidRowRange || totalBulkSeats <= 0}
+                  className="btn btn-primary btn-sm"
+                >
+                  {bulkLoading ? 'Generating Seats...' : `Generate ${totalBulkSeats > 0 ? `${totalBulkSeats} ` : ''}Seats`}
                 </button>
               </div>
             </form>

@@ -25,6 +25,11 @@ export const seatService = {
     return api.post('/api/seats', seatData);
   },
 
+  // Admin: POST /api/seats/bulk
+  async createSeatsBulk(bulkData) {
+    return api.post('/api/seats/bulk', bulkData);
+  },
+
   // Admin: PUT /api/seats/{id}
   async updateSeat(id, seatData) {
     return api.put(`/api/seats/${id}`, seatData);

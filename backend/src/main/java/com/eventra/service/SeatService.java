@@ -1,10 +1,14 @@
 package com.eventra.service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import com.eventra.dto.BulkSeatCreationRequest;
 import com.eventra.entity.Seat;
 import com.eventra.entity.Venue;
 import com.eventra.repository.BookingSeatRepository;
@@ -38,6 +42,90 @@ public class SeatService {
         seat.setVenue(venue);
 
         return seatRepository.save(seat);
+    }
+
+    @Transactional
+    public List<Seat> createSeatsBulk(BulkSeatCreationRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("Bulk seat creation request cannot be null");
+        }
+        if (request.getVenueId() == null) {
+            throw new IllegalArgumentException("Venue ID is required");
+        }
+        if (request.getCategory() == null || request.getCategory().trim().isEmpty()) {
+            throw new IllegalArgumentException("Category is required");
+        }
+        if (request.getRowFrom() == null || request.getRowFrom().trim().isEmpty()) {
+            throw new IllegalArgumentException("rowFrom is required");
+        }
+        if (request.getRowTo() == null || request.getRowTo().trim().isEmpty()) {
+            throw new IllegalArgumentException("rowTo is required");
+        }
+        if (request.getSeatsPerRow() == null || request.getSeatsPerRow() <= 0) {
+            throw new IllegalArgumentException("seatsPerRow must be greater than zero");
+        }
+        if (request.getPrice() == null || request.getPrice() <= 0) {
+            throw new IllegalArgumentException("price must be greater than zero");
+        }
+
+        String rowFromStr = request.getRowFrom().trim().toUpperCase();
+        String rowToStr = request.getRowTo().trim().toUpperCase();
+
+        if (rowFromStr.length() != 1 || rowFromStr.charAt(0) < 'A' || rowFromStr.charAt(0) > 'Z') {
+            throw new IllegalArgumentException("rowFrom must be a single letter from A to Z");
+        }
+        if (rowToStr.length() != 1 || rowToStr.charAt(0) < 'A' || rowToStr.charAt(0) > 'Z') {
+            throw new IllegalArgumentException("rowTo must be a single letter from A to Z");
+        }
+
+        char startChar = rowFromStr.charAt(0);
+        char endChar = rowToStr.charAt(0);
+
+        if (startChar > endChar) {
+            throw new IllegalArgumentException("rowFrom ('" + startChar + "') cannot be greater than rowTo ('" + endChar + "')");
+        }
+
+        Venue venue = venueRepository.findById(request.getVenueId())
+                .orElseThrow(() -> new NoSuchElementException(
+                        "Venue not found with ID: " + request.getVenueId()));
+
+        String normalizedCategory = request.getCategory().trim();
+
+        List<String> generatedSeatNumbers = new ArrayList<>();
+        List<Seat> seatsToCreate = new ArrayList<>();
+
+        for (char row = startChar; row <= endChar; row++) {
+            for (int number = 1; number <= request.getSeatsPerRow(); number++) {
+                String seatNumber = "" + row + number;
+                generatedSeatNumbers.add(seatNumber);
+
+                Seat seat = new Seat();
+                seat.setVenue(venue);
+                seat.setSeatNumber(seatNumber);
+                seat.setSection(normalizedCategory);
+                seat.setSeatType(normalizedCategory);
+                seat.setPrice(request.getPrice());
+                seatsToCreate.add(seat);
+            }
+        }
+
+        // Check for conflicting seats already in this venue
+        List<Seat> existingConflictingSeats = seatRepository.findByVenueIdAndSeatNumberIn(
+                venue.getId(),
+                generatedSeatNumbers
+        );
+
+        if (!existingConflictingSeats.isEmpty()) {
+            List<String> conflictingNumbers = existingConflictingSeats.stream()
+                    .map(Seat::getSeatNumber)
+                    .distinct()
+                    .collect(Collectors.toList());
+            throw new IllegalStateException(
+                    "Seats already exist for venue " + venue.getId() + ": " + conflictingNumbers
+            );
+        }
+
+        return seatRepository.saveAll(seatsToCreate);
     }
 
     public List<Seat> getAllSeats() {
