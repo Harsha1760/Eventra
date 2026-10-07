@@ -1,4 +1,3 @@
-
 package com.eventra.service;
 
 import java.util.List;
@@ -7,23 +6,37 @@ import java.util.NoSuchElementException;
 import org.springframework.stereotype.Service;
 
 import com.eventra.entity.Event;
-import com.eventra.repository.EventRepository;
+import com.eventra.entity.Venue;
 import com.eventra.repository.BookingRepository;
+import com.eventra.repository.EventRepository;
+import com.eventra.repository.VenueRepository;
 
 @Service
 public class EventService {
 
     private final EventRepository eventRepository;
     private final BookingRepository bookingRepository;
+    private final VenueRepository venueRepository;
 
     public EventService(
             EventRepository eventRepository,
-            BookingRepository bookingRepository) {
+            BookingRepository bookingRepository,
+            VenueRepository venueRepository) {
         this.eventRepository = eventRepository;
         this.bookingRepository = bookingRepository;
+        this.venueRepository = venueRepository;
     }
 
     public Event createEvent(Event event) {
+        if (event.getVenue() == null || event.getVenue().getId() == null) {
+            throw new IllegalArgumentException("Event must have a valid venue");
+        }
+
+        Venue venue = venueRepository.findById(event.getVenue().getId())
+                .orElseThrow(() -> new NoSuchElementException(
+                        "Venue not found with ID: " + event.getVenue().getId()));
+        event.setVenue(venue);
+
         return eventRepository.save(event);
     }
 
@@ -40,6 +53,13 @@ public class EventService {
     public Event updateEvent(Long id, Event updatedEvent) {
         Event existingEvent = getEventById(id);
 
+        if (updatedEvent.getVenue() != null && updatedEvent.getVenue().getId() != null) {
+            Venue venue = venueRepository.findById(updatedEvent.getVenue().getId())
+                    .orElseThrow(() -> new NoSuchElementException(
+                            "Venue not found with ID: " + updatedEvent.getVenue().getId()));
+            existingEvent.setVenue(venue);
+        }
+
         existingEvent.setName(updatedEvent.getName());
         existingEvent.setDescription(updatedEvent.getDescription());
         existingEvent.setArtist(updatedEvent.getArtist());
@@ -48,7 +68,6 @@ public class EventService {
         existingEvent.setStartTime(updatedEvent.getStartTime());
         existingEvent.setEndTime(updatedEvent.getEndTime());
         existingEvent.setStatus(updatedEvent.getStatus());
-        existingEvent.setVenue(updatedEvent.getVenue());
 
         return eventRepository.save(existingEvent);
     }

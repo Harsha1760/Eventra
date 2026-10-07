@@ -27,7 +27,7 @@ public class VenueController {
     }
 
     @PostMapping
-    public Venue createVenue(@RequestBody Venue venue) {
+    public Venue createVenue(@jakarta.validation.Valid @RequestBody Venue venue) {
         return venueService.createVenue(venue);
     }
 
@@ -44,7 +44,7 @@ public class VenueController {
     @PutMapping("/{id}")
     public Venue updateVenue(
             @PathVariable Long id,
-            @RequestBody Venue venue) {
+            @jakarta.validation.Valid @RequestBody Venue venue) {
         return venueService.updateVenue(id, venue);
     }
 

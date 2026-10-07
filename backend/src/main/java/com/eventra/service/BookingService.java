@@ -1,4 +1,3 @@
-
 package com.eventra.service;
 
 import java.time.LocalDateTime;
@@ -8,10 +7,12 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
 
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.eventra.dto.BookingRequest;
+import com.eventra.dto.BookingResponse;
 import com.eventra.entity.Booking;
 import com.eventra.entity.BookingSeat;
 import com.eventra.entity.Event;
@@ -22,6 +23,7 @@ import com.eventra.repository.BookingSeatRepository;
 import com.eventra.repository.EventRepository;
 import com.eventra.repository.SeatRepository;
 import com.eventra.repository.UserRepository;
+import com.eventra.security.UserPrincipal;
 
 @Service
 public class BookingService {
@@ -45,115 +47,111 @@ public class BookingService {
         this.seatRepository = seatRepository;
     }
 
-    // Get all bookings
-    public List<Booking> getAllBookings() {
-        return bookingRepository.findAll();
+    // Get all bookings (Admin use)
+    public List<BookingResponse> getAllBookings() {
+        return bookingRepository.findAll().stream()
+                .map(this::toBookingResponse)
+                .toList();
     }
 
-    // Get booking history for a specific user
-    public List<Booking> getBookingsByUserId(Long userId) {
+    // Get booking history for a specific user with service-level ownership validation
+    public List<BookingResponse> getBookingsByUserId(Long userId, UserPrincipal principal) {
         if (userId == null) {
             throw new IllegalArgumentException("User ID is required");
         }
 
-        if (!userRepository.existsById(userId)) {
-            throw new NoSuchElementException(
-                    "User not found with ID: " + userId);
+        if (principal == null) {
+            throw new AccessDeniedException("Authentication required to view bookings");
         }
 
-        return bookingRepository.findByUserId(userId);
+        boolean isAdmin = "ADMIN".equalsIgnoreCase(principal.getRole());
+        boolean isOwner = principal.getId() != null && principal.getId().equals(userId);
+
+        if (!isAdmin && !isOwner) {
+            throw new AccessDeniedException("Access denied: You can only access your own bookings");
+        }
+
+        if (!userRepository.existsById(userId)) {
+            throw new NoSuchElementException("User not found with ID: " + userId);
+        }
+
+        return bookingRepository.findByUserId(userId).stream()
+                .map(this::toBookingResponse)
+                .toList();
     }
 
     // Check whether a seat is currently booked for an event
     public boolean isSeatBooked(Long seatId, Long eventId) {
         if (seatId == null || eventId == null) {
-            throw new IllegalArgumentException(
-                    "Seat ID and event ID are required");
+            throw new IllegalArgumentException("Seat ID and event ID are required");
         }
 
         return bookingSeatRepository
-                .existsBySeatIdAndBookingEventIdAndBookingStatus(
-                        seatId, eventId, "CONFIRMED");
+                .existsBySeatIdAndBookingEventIdAndBookingStatus(seatId, eventId, "CONFIRMED");
     }
 
-    // Create a booking
+    // Create a booking with authenticated user enforcement and server-side price calculation
     @Transactional
-    public Booking createBooking(BookingRequest request) {
+    public BookingResponse createBooking(BookingRequest request, UserPrincipal principal) {
+        if (principal == null) {
+            throw new AccessDeniedException("Authentication required to create a booking");
+        }
 
-        // 1. Validate required fields
         if (request == null
-                || request.getUserId() == null
                 || request.getEventId() == null
                 || request.getSeatIds() == null
                 || request.getSeatIds().isEmpty()) {
-            throw new IllegalArgumentException(
-                    "User, event and at least one seat are required");
+            throw new IllegalArgumentException("Event and at least one seat are required");
         }
 
-        // 2. Validate seat IDs
+        // Validate seat selection for uniqueness
         Set<Long> uniqueSeatIds = new HashSet<>(request.getSeatIds());
-
-        if (uniqueSeatIds.size() != request.getSeatIds().size()
-                || uniqueSeatIds.contains(null)) {
-            throw new IllegalArgumentException(
-                    "Seat selection contains duplicate or invalid IDs");
+        if (uniqueSeatIds.size() != request.getSeatIds().size() || uniqueSeatIds.contains(null)) {
+            throw new IllegalArgumentException("Seat selection contains duplicate or invalid IDs");
         }
 
-        // 3. Find user and event
-        User user = userRepository.findById(request.getUserId())
-                .orElseThrow(() -> new NoSuchElementException(
-                        "User not found with ID: " + request.getUserId()));
+        // Authoritative user identification from authenticated principal
+        Long authenticatedUserId = principal.getId();
+        User user = userRepository.findById(authenticatedUserId)
+                .orElseThrow(() -> new NoSuchElementException("User not found with ID: " + authenticatedUserId));
 
         Event event = eventRepository.findById(request.getEventId())
-                .orElseThrow(() -> new NoSuchElementException(
-                        "Event not found with ID: " + request.getEventId()));
+                .orElseThrow(() -> new NoSuchElementException("Event not found with ID: " + request.getEventId()));
 
         if (event.getVenue() == null) {
-            throw new IllegalStateException(
-                    "Event does not have a venue");
+            throw new IllegalStateException("Event does not have an assigned venue");
         }
 
-        // 4. Find all requested seats
+        // Retrieve and validate requested seats
         List<Seat> seats = seatRepository.findAllById(uniqueSeatIds);
-
         if (seats.size() != uniqueSeatIds.size()) {
-            throw new NoSuchElementException(
-                    "One or more selected seats do not exist");
+            throw new NoSuchElementException("One or more selected seats do not exist");
         }
 
-        // 5. Validate seats and calculate total amount
         double totalAmount = 0.0;
 
         for (Seat seat : seats) {
-
-            if (seat.getVenue() == null
-                    || !seat.getVenue().getId()
-                            .equals(event.getVenue().getId())) {
+            if (seat.getVenue() == null || !seat.getVenue().getId().equals(event.getVenue().getId())) {
                 throw new IllegalArgumentException(
-                        "Seat " + seat.getSeatNumber()
-                                + " does not belong to this event's venue");
+                        "Seat " + seat.getSeatNumber() + " does not belong to this event's venue");
             }
 
             if (seat.getPrice() == null || seat.getPrice() < 0) {
-                throw new IllegalStateException(
-                        "Seat " + seat.getSeatNumber()
-                                + " has an invalid price");
+                throw new IllegalStateException("Seat " + seat.getSeatNumber() + " has an invalid price");
             }
 
             boolean alreadyBooked = bookingSeatRepository
-                    .existsBySeatIdAndBookingEventIdAndBookingStatus(
-                            seat.getId(), event.getId(), "CONFIRMED");
+                    .existsBySeatIdAndBookingEventIdAndBookingStatus(seat.getId(), event.getId(), "CONFIRMED");
 
             if (alreadyBooked) {
                 throw new IllegalStateException(
-                        "Seat " + seat.getSeatNumber()
-                                + " is already booked for this event");
+                        "Seat " + seat.getSeatNumber() + " is already booked for this event");
             }
 
             totalAmount += seat.getPrice();
         }
 
-        // 6. Create and save the booking
+        // Create booking
         Booking booking = new Booking();
         booking.setUser(user);
         booking.setEvent(event);
@@ -163,42 +161,86 @@ public class BookingService {
 
         Booking savedBooking = bookingRepository.save(booking);
 
-        // 7. Save the seat associations
+        // Save seat associations
         List<BookingSeat> bookingSeats = new ArrayList<>();
-
+        List<String> seatNumbers = new ArrayList<>();
         for (Seat seat : seats) {
             BookingSeat bookingSeat = new BookingSeat();
             bookingSeat.setBooking(savedBooking);
             bookingSeat.setSeat(seat);
-
             bookingSeats.add(bookingSeat);
+            seatNumbers.add(seat.getSeatNumber());
         }
 
         bookingSeatRepository.saveAll(bookingSeats);
 
-        return savedBooking;
+        return new BookingResponse(
+                savedBooking.getId(),
+                user.getId(),
+                user.getName(),
+                event.getId(),
+                event.getName(),
+                savedBooking.getBookingDate(),
+                savedBooking.getTotalAmount(),
+                savedBooking.getStatus(),
+                new ArrayList<>(uniqueSeatIds),
+                seatNumbers
+        );
     }
 
-    // Cancel a confirmed booking
+    // Cancel a confirmed booking with service-level ownership validation
     @Transactional
-    public Booking cancelBooking(Long bookingId) {
-
+    public BookingResponse cancelBooking(Long bookingId, UserPrincipal principal) {
         if (bookingId == null) {
-            throw new IllegalArgumentException(
-                    "Booking ID is required");
+            throw new IllegalArgumentException("Booking ID is required");
+        }
+
+        if (principal == null) {
+            throw new AccessDeniedException("Authentication required to cancel a booking");
         }
 
         Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new NoSuchElementException(
-                        "Booking not found with ID: " + bookingId));
+                .orElseThrow(() -> new NoSuchElementException("Booking not found with ID: " + bookingId));
+
+        boolean isAdmin = "ADMIN".equalsIgnoreCase(principal.getRole());
+        boolean isOwner = booking.getUser() != null
+                && principal.getId() != null
+                && principal.getId().equals(booking.getUser().getId());
+
+        if (!isAdmin && !isOwner) {
+            throw new AccessDeniedException("Access denied: You can only cancel your own bookings");
+        }
 
         if (!"CONFIRMED".equals(booking.getStatus())) {
-            throw new IllegalStateException(
-                    "Only confirmed bookings can be cancelled");
+            throw new IllegalStateException("Only confirmed bookings can be cancelled");
         }
 
         booking.setStatus("CANCELLED");
+        Booking updatedBooking = bookingRepository.save(booking);
 
-        return bookingRepository.save(booking);
+        return toBookingResponse(updatedBooking);
+    }
+
+    public BookingResponse toBookingResponse(Booking booking) {
+        List<BookingSeat> bookingSeats = bookingSeatRepository.findByBookingId(booking.getId());
+        List<Long> seatIds = bookingSeats.stream()
+                .map(bs -> bs.getSeat().getId())
+                .toList();
+        List<String> seatNumbers = bookingSeats.stream()
+                .map(bs -> bs.getSeat().getSeatNumber())
+                .toList();
+
+        return new BookingResponse(
+                booking.getId(),
+                booking.getUser() != null ? booking.getUser().getId() : null,
+                booking.getUser() != null ? booking.getUser().getName() : null,
+                booking.getEvent() != null ? booking.getEvent().getId() : null,
+                booking.getEvent() != null ? booking.getEvent().getName() : null,
+                booking.getBookingDate(),
+                booking.getTotalAmount(),
+                booking.getStatus(),
+                seatIds,
+                seatNumbers
+        );
     }
 }

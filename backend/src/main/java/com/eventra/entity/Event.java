@@ -10,6 +10,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 @Entity
 @Table(name = "events")
@@ -19,6 +21,7 @@ public class Event {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @NotBlank(message = "Event name is required")
     private String name;
 
     private String description;
@@ -27,6 +30,7 @@ public class Event {
 
     private String category;
 
+    @NotNull(message = "Event date is required")
     private LocalDate eventDate;
 
     private LocalTime startTime;
@@ -34,6 +38,8 @@ public class Event {
     private LocalTime endTime;
 
     private String status;
+
+    @NotNull(message = "Venue is required")
     @ManyToOne
     @JoinColumn(name = "venue_id")
     private Venue venue;
@@ -112,10 +118,12 @@ public class Event {
     public void setStatus(String status) {
         this.status = status;
     }
+
     public Venue getVenue() {
-    return venue;
-}
-public void setVenue(Venue venue) {
-    this.venue = venue;
-}
+        return venue;
+    }
+
+    public void setVenue(Venue venue) {
+        this.venue = venue;
+    }
 }

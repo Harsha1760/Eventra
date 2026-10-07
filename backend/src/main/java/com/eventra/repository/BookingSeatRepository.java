@@ -16,4 +16,6 @@ public interface BookingSeatRepository
             Long eventId);
 
     boolean existsBySeatId(Long seatId);
+
+    java.util.List<BookingSeat> findByBookingId(Long bookingId);
 }

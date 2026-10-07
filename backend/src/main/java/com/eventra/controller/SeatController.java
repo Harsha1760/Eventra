@@ -27,7 +27,7 @@ public class SeatController {
     }
 
     @PostMapping
-    public Seat createSeat(@RequestBody Seat seat) {
+    public Seat createSeat(@jakarta.validation.Valid @RequestBody Seat seat) {
         return seatService.createSeat(seat);
     }
 
@@ -44,7 +44,7 @@ public class SeatController {
     @PutMapping("/{id}")
     public Seat updateSeat(
             @PathVariable Long id,
-            @RequestBody Seat seat) {
+            @jakarta.validation.Valid @RequestBody Seat seat) {
         return seatService.updateSeat(id, seat);
     }
 

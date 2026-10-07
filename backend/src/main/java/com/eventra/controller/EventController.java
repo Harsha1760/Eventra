@@ -27,7 +27,7 @@ public class EventController {
     }
 
     @PostMapping
-    public Event createEvent(@RequestBody Event event) {
+    public Event createEvent(@jakarta.validation.Valid @RequestBody Event event) {
         return eventService.createEvent(event);
     }
 
@@ -44,7 +44,7 @@ public class EventController {
     @PutMapping("/{id}")
     public Event updateEvent(
             @PathVariable Long id,
-            @RequestBody Event event) {
+            @jakarta.validation.Valid @RequestBody Event event) {
         return eventService.updateEvent(id, event);
     }
 @DeleteMapping("/{id}")
