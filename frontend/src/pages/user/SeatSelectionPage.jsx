@@ -30,10 +30,18 @@ export function SeatSelectionPage() {
       try {
         // 1. Fetch Event
         let eventData = null;
+        let isRealBackendEvent = false;
         try {
           eventData = await eventService.getEventById(id);
+          if (eventData && eventData.id) {
+            isRealBackendEvent = true;
+          }
         } catch {
-          eventData = SAMPLE_HYDERABAD_EVENTS.find((e) => String(e.id) === String(id)) || SAMPLE_HYDERABAD_EVENTS[0];
+          eventData = SAMPLE_HYDERABAD_EVENTS.find((e) => String(e.id) === String(id));
+        }
+
+        if (!eventData) {
+          eventData = SAMPLE_HYDERABAD_EVENTS[0];
         }
         setEvent(eventData);
 
@@ -47,14 +55,15 @@ export function SeatSelectionPage() {
           seatList = [];
         }
 
-        if (!seatList || seatList.length === 0) {
+        // Only fall back to SAMPLE_SEATS if this is DEMO mode
+        if ((!seatList || seatList.length === 0) && !isRealBackendEvent) {
           seatList = SAMPLE_SEATS;
         }
-        setSeats(seatList);
+        setSeats(Array.isArray(seatList) ? seatList : []);
 
         // 3. Check seat booking statuses from backend
         try {
-          const seatIds = seatList.map((s) => s.id);
+          const seatIds = (seatList || []).map((s) => s.id);
           const bookedSet = await bookingService.getBookedSeatIds(seatIds, eventData.id);
           setBookedSeatIds(bookedSet);
         } catch {
@@ -89,7 +98,7 @@ export function SeatSelectionPage() {
   };
 
   const selectedSeats = seats.filter((s) => selectedSeatIds.includes(s.id));
-  const subtotal = selectedSeats.reduce((sum, s) => sum + (s.price || 999), 0);
+  const subtotal = selectedSeats.reduce((sum, s) => sum + (typeof s.price === 'number' ? s.price : 0), 0);
 
   const handleProceedToBooking = async () => {
     if (selectedSeatIds.length === 0) {
@@ -127,7 +136,7 @@ export function SeatSelectionPage() {
         const seatIds = seats.map((s) => s.id);
         const bookedSet = await bookingService.getBookedSeatIds(seatIds, event.id);
         setBookedSeatIds(bookedSet);
-      } catch (e) {
+      } catch (_e) {
         // ignore
       }
     } finally {
@@ -263,69 +272,81 @@ export function SeatSelectionPage() {
             </div>
 
             {/* Seat Rows Matrix */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '640px', margin: '0 auto' }}>
-              {Object.keys(groupedRows).map((rowLetter, _rowIndex) => {
-                const rowSeats = groupedRows[rowLetter];
-                const rowSection = rowSeats[0]?.section || 'Standard';
-                const rowPrice = rowSeats[0]?.price || 999;
+            {seats.length === 0 ? (
+              <div style={{ padding: '64px 20px', textAlign: 'center' }}>
+                <h3 style={{ color: '#FFFFFF', marginBottom: '10px' }}>Seats Unavailable</h3>
+                <p style={{ color: 'var(--theatre-ink-muted)', marginBottom: '24px', fontSize: '0.95rem' }}>
+                  Seat inventory and pricing have not been configured for this venue yet. Bookings are not currently open.
+                </p>
+                <Link to={`/events/${event.id}`} className="btn btn-outline btn-sm">
+                  Back to Event Details
+                </Link>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '640px', margin: '0 auto' }}>
+                {Object.keys(groupedRows).map((rowLetter, _rowIndex) => {
+                  const rowSeats = groupedRows[rowLetter];
+                  const rowSection = rowSeats[0]?.section || 'Standard';
+                  const rowPrice = typeof rowSeats[0]?.price === 'number' ? rowSeats[0].price : null;
 
-                return (
-                  <div key={rowLetter} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px' }}>
-                    <span 
-                      className="font-mono"
-                      style={{ 
-                        width: '24px', 
-                        fontSize: '0.8rem', 
-                        fontWeight: 600, 
-                        color: 'rgba(255,255,255,0.4)',
-                        textAlign: 'right' 
-                      }}
-                    >
-                      {rowLetter}
-                    </span>
+                  return (
+                    <div key={rowLetter} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px' }}>
+                      <span
+                        className="font-mono"
+                        style={{
+                          width: '24px',
+                          fontSize: '0.8rem',
+                          fontWeight: 600,
+                          color: 'rgba(255,255,255,0.4)',
+                          textAlign: 'right'
+                        }}
+                      >
+                        {rowLetter}
+                      </span>
 
-                    {/* Seats in this row with slight parabolic curve */}
-                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
-                      {rowSeats.map((seat, _seatIdx) => {
-                        const isBooked = bookedSeatIds.has(seat.id);
-                        const isSelected = selectedSeatIds.includes(seat.id);
+                      {/* Seats in this row with slight parabolic curve */}
+                      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                        {rowSeats.map((seat, _seatIdx) => {
+                          const isBooked = bookedSeatIds.has(seat.id);
+                          const isSelected = selectedSeatIds.includes(seat.id);
 
-                        return (
-                          <button
-                            key={seat.id}
-                            disabled={isBooked}
-                            onClick={() => toggleSeat(seat.id)}
-                            className={`seat-button ${
-                              isSelected
-                                ? 'seat-selected'
-                                : isBooked
-                                ? 'seat-booked'
-                                : 'seat-available'
-                            }`}
-                            title={`Seat ${seat.seatNumber} (${rowSection}) - ${formatCurrency(seat.price)}`}
-                            aria-label={`Seat ${seat.seatNumber}, ${isBooked ? 'Booked' : isSelected ? 'Selected' : 'Available'}`}
-                          >
-                            {seat.seatNumber}
-                          </button>
-                        );
-                      })}
+                          return (
+                            <button
+                              key={seat.id}
+                              disabled={isBooked}
+                              onClick={() => toggleSeat(seat.id)}
+                              className={`seat-button ${
+                                isSelected
+                                  ? 'seat-selected'
+                                  : isBooked
+                                  ? 'seat-booked'
+                                  : 'seat-available'
+                              }`}
+                              title={`Seat ${seat.seatNumber} (${rowSection}) - ${typeof seat.price === 'number' ? formatCurrency(seat.price) : 'Unpriced'}`}
+                              aria-label={`Seat ${seat.seatNumber}, ${isBooked ? 'Booked' : isSelected ? 'Selected' : 'Available'}`}
+                            >
+                              {seat.seatNumber}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <span
+                        className="font-mono"
+                        style={{
+                          width: '60px',
+                          fontSize: '0.72rem',
+                          color: 'rgba(255,255,255,0.3)',
+                          textAlign: 'left'
+                        }}
+                      >
+                        {rowPrice != null ? formatCurrency(rowPrice) : ''}
+                      </span>
                     </div>
-
-                    <span 
-                      className="font-mono"
-                      style={{ 
-                        width: '60px', 
-                        fontSize: '0.72rem', 
-                        color: 'rgba(255,255,255,0.3)',
-                        textAlign: 'left' 
-                      }}
-                    >
-                      {formatCurrency(rowPrice)}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Seat Map Legend */}
             <div 
@@ -399,7 +420,7 @@ export function SeatSelectionPage() {
                         </span>
                       </div>
                       <span className="font-mono" style={{ color: '#FFFFFF', fontWeight: 500 }}>
-                        {formatCurrency(s.price || 999)}
+                        {formatCurrency(typeof s.price === 'number' ? s.price : 0)}
                       </span>
                     </div>
                   ))}

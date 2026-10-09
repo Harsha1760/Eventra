@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { eventService } from '../../services/eventService';
-import { seatService } from '../../services/seatService';
+import { seatService, deriveSeatTiers } from '../../services/seatService';
 import { SAMPLE_HYDERABAD_EVENTS, SAMPLE_SEATS } from '../../utils/sampleData';
 import { getEventImage } from '../../utils/constants';
 import { formatDateFull, formatTime, formatCurrency } from '../../utils/formatters';
@@ -11,7 +11,7 @@ export function EventDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [event, setEvent] = useState(null);
-  const [_seats, setSeats] = useState([]);
+  const [seats, setSeats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -20,28 +20,46 @@ export function EventDetailsPage() {
       setLoading(true);
       setError(null);
       try {
-        const eventData = await eventService.getEventById(id);
-        if (eventData && eventData.id) {
-          setEvent(eventData);
+        let eventData = null;
+        let isRealBackendEvent = false;
+
+        try {
+          eventData = await eventService.getEventById(id);
+          if (eventData && eventData.id) {
+            isRealBackendEvent = true;
+          }
+        } catch {
+          // If backend 404s, allow viewing sample event in demo mode
+          const sample = SAMPLE_HYDERABAD_EVENTS.find((e) => String(e.id) === String(id));
+          if (sample) {
+            eventData = sample;
+          } else {
+            throw new Error('Performance not found with ID: ' + id);
+          }
+        }
+
+        if (!eventData) {
+          throw new Error('Performance not found with ID: ' + id);
+        }
+
+        setEvent(eventData);
+
+        // Fetch actual venue seats
+        if (isRealBackendEvent) {
           if (eventData.venue?.id) {
             try {
               const venueSeats = await seatService.getSeatsByVenue(eventData.venue.id);
-              setSeats(venueSeats && venueSeats.length > 0 ? venueSeats : SAMPLE_SEATS);
+              // For REAL backend events, only use actual venue seats. Never fall back to SAMPLE_SEATS!
+              setSeats(Array.isArray(venueSeats) ? venueSeats : []);
             } catch {
-              setSeats(SAMPLE_SEATS);
+              setSeats([]);
             }
           } else {
-            setSeats(SAMPLE_SEATS);
+            setSeats([]);
           }
         } else {
-          // If ID matches a sample event ID (e.g. 101, 102), allow viewing sample
-          const sample = SAMPLE_HYDERABAD_EVENTS.find((e) => String(e.id) === String(id));
-          if (sample) {
-            setEvent(sample);
-            setSeats(SAMPLE_SEATS);
-          } else {
-            setError('Performance not found with ID: ' + id);
-          }
+          // Intentional demo mode for sample events
+          setSeats(SAMPLE_SEATS);
         }
       } catch (err) {
         setError(err.message || 'Unable to connect to Eventra server');
@@ -85,13 +103,11 @@ export function EventDetailsPage() {
 
   const eventImage = getEventImage(event.category, event.id);
 
-  // Derive seat zones and prices from available seats
-  const seatTiers = [
-    { name: 'VIP Lounge', price: 1999, status: 'Available', note: 'Front center rows, prime acoustic clarity' },
-    { name: 'Orchestra Front', price: 1499, status: 'Available', note: 'Rows B-C, optimal sightlines' },
-    { name: 'Center Hall', price: 999, status: 'Available', note: 'Row C, classic amphitheatre view' },
-    { name: 'Upper Tier / Balcony', price: 699, status: 'Limited', note: 'Elevated panorama' },
-  ];
+  // Derive dynamic seat zones and prices from actual venue seats
+  const seatTiers = deriveSeatTiers(seats);
+  const startingPrice = seatTiers.length > 0
+    ? Math.min(...seatTiers.map((t) => t.price))
+    : (typeof event.price === 'number' && event.price > 0 ? event.price : null);
 
   return (
     <div style={{ paddingBottom: '96px' }}>
@@ -249,7 +265,11 @@ export function EventDetailsPage() {
                   <Users size={14} /> Capacity
                 </span>
                 <span className="font-mono" style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--ink-primary)' }}>
-                  {event.venue?.capacity ? `${event.venue.capacity} Seats` : 'Full Amphitheatre'}
+                  {seats.length > 0
+                    ? `${seats.length} Seats`
+                    : event.venue?.capacity
+                    ? `${event.venue.capacity} Capacity`
+                    : 'Full Amphitheatre'}
                 </span>
               </div>
             </div>
@@ -267,31 +287,39 @@ export function EventDetailsPage() {
                   backgroundColor: 'var(--bg-surface)',
                 }}
               >
-                {seatTiers.map((tier, idx) => (
-                  <div
-                    key={tier.name}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '14px 18px',
-                      borderBottom: idx < seatTiers.length - 1 ? '1px solid var(--border-subtle)' : 'none',
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{tier.name}</div>
-                      <div style={{ fontSize: '0.78rem', color: 'var(--ink-muted)' }}>{tier.note}</div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div className="font-mono" style={{ fontSize: '1.1rem', fontWeight: 600 }}>
-                        {formatCurrency(tier.price)}
+                {seatTiers.length > 0 ? (
+                  seatTiers.map((tier, idx) => (
+                    <div
+                      key={`${tier.name}-${tier.price}`}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '14px 18px',
+                        borderBottom: idx < seatTiers.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{tier.name}</div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--ink-muted)' }}>{tier.note}</div>
                       </div>
-                      <span className={`badge ${tier.status === 'Available' ? 'badge-open' : 'badge-cancelled'}`}>
-                        {tier.status}
-                      </span>
+                      <div style={{ textAlign: 'right' }}>
+                        <div className="font-mono" style={{ fontSize: '1.1rem', fontWeight: 600 }}>
+                          {formatCurrency(tier.price)}
+                        </div>
+                        <span className={`badge ${tier.status === 'Available' ? 'badge-open' : 'badge-cancelled'}`}>
+                          {tier.status}
+                        </span>
+                      </div>
                     </div>
+                  ))
+                ) : (
+                  <div style={{ padding: '24px 20px', textAlign: 'center', color: 'var(--ink-muted)' }}>
+                    <p style={{ margin: 0, fontSize: '0.92rem' }}>
+                      Pricing coming soon · Seat inventory has not been configured for this venue yet.
+                    </p>
                   </div>
-                ))}
+                )}
               </div>
             </div>
 
@@ -311,14 +339,15 @@ export function EventDetailsPage() {
             >
               <div>
                 <span className="font-mono" style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--ink-muted)', display: 'block' }}>
-                  Starting Entry
+                  {startingPrice != null ? 'Starting Entry' : 'Pricing Status'}
                 </span>
-                <span className="font-mono" style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--ink-primary)' }}>
-                  ₹699
+                <span className="font-mono" style={{ fontSize: startingPrice != null ? '1.6rem' : '1.15rem', fontWeight: 700, color: startingPrice != null ? 'var(--ink-primary)' : 'var(--ink-muted)' }}>
+                  {startingPrice != null ? formatCurrency(startingPrice) : 'Seats unavailable'}
                 </span>
               </div>
 
               <button
+                disabled={seatTiers.length === 0 && !startingPrice}
                 onClick={() => navigate(`/events/${event.id}/book`)}
                 className="btn btn-primary btn-lg"
                 style={{
@@ -326,9 +355,11 @@ export function EventDetailsPage() {
                   fontWeight: 600,
                   fontSize: '1.05rem',
                   letterSpacing: '0.02em',
+                  opacity: seatTiers.length === 0 && !startingPrice ? 0.6 : 1,
+                  cursor: seatTiers.length === 0 && !startingPrice ? 'not-allowed' : 'pointer',
                 }}
               >
-                <span>CHOOSE SEATS</span>
+                <span>{seatTiers.length === 0 && !startingPrice ? 'SEATS UNAVAILABLE' : 'CHOOSE SEATS'}</span>
                 <ArrowRight size={18} />
               </button>
             </div>

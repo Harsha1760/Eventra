@@ -11,6 +11,13 @@ export const eventService = {
     return api.get(`/api/events/${id}`);
   },
 
+  // Public: Filter events by venue ID
+  async getEventsByVenue(venueId) {
+    const events = await this.getAllEvents();
+    if (!venueId) return events;
+    return events.filter((evt) => evt.venue && String(evt.venue.id) === String(venueId));
+  },
+
   // Admin: POST /api/events
   async createEvent(eventData) {
     return api.post('/api/events', eventData);

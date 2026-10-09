@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { eventService } from '../../services/eventService';
+import { seatService } from '../../services/seatService';
 import { SAMPLE_HYDERABAD_EVENTS } from '../../utils/sampleData';
 import { getEventImage } from '../../utils/constants';
 import { EventRow } from '../../components/events/EventRow';
@@ -19,9 +20,20 @@ export function HomePage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await eventService.getAllEvents();
+      const [data, venuePrices] = await Promise.all([
+        eventService.getAllEvents(),
+        seatService.getVenuePriceMap(),
+      ]);
       if (Array.isArray(data) && data.length > 0) {
-        setEvents(data);
+        // Enrich events with actual starting prices derived from seats
+        const enriched = data.map((evt) => {
+          const venueMinPrice = evt.venue?.id ? venuePrices.get(String(evt.venue.id)) : null;
+          return {
+            ...evt,
+            startingPrice: venueMinPrice ?? (typeof evt.price === 'number' && evt.price > 0 ? evt.price : null),
+          };
+        });
+        setEvents(enriched);
       } else {
         // API succeeded, but database contains no records yet -> preview curated records
         setEvents(SAMPLE_HYDERABAD_EVENTS);
@@ -53,6 +65,7 @@ export function HomePage() {
   });
 
   const featuredEvent = events[0] || SAMPLE_HYDERABAD_EVENTS[0];
+  const featuredStartingPrice = featuredEvent?.startingPrice ?? (typeof featuredEvent?.price === 'number' && featuredEvent.price > 0 ? featuredEvent.price : null);
   const featuredImage = getEventImage(featuredEvent?.category, featuredEvent?.id);
 
   return (
@@ -424,17 +437,17 @@ export function HomePage() {
                         display: 'block' 
                       }}
                     >
-                      Tickets From
+                      {featuredStartingPrice ? 'Tickets From' : 'Tickets'}
                     </span>
-                    <span 
+                    <span
                       className="font-mono"
-                      style={{ 
-                        fontSize: '1.45rem', 
-                        fontWeight: 600, 
-                        color: 'var(--ink-primary)' 
+                      style={{
+                        fontSize: featuredStartingPrice ? '1.45rem' : '1.05rem',
+                        fontWeight: 600,
+                        color: featuredStartingPrice ? 'var(--ink-primary)' : 'var(--ink-muted)'
                       }}
                     >
-                      {formatCurrency(featuredEvent.price || 999)}
+                      {featuredStartingPrice ? formatCurrency(featuredStartingPrice) : 'Pricing coming soon'}
                     </span>
                   </div>
 

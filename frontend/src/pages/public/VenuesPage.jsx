@@ -131,7 +131,7 @@ export function VenuesPage() {
                   </div>
 
                   <Link
-                    to={`/events?search=${encodeURIComponent(venue.name)}`}
+                    to={`/events?venueId=${venue.id}`}
                     className="btn btn-outline btn-sm"
                   >
                     <span>View Events</span>

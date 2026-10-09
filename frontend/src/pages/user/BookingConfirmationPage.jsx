@@ -12,7 +12,7 @@ export function BookingConfirmationPage() {
   const bookingRef = formatBookingRef(id || booking?.bookingId);
   const eventName = booking?.eventName || event?.name || 'Symphony of the Deccan';
   const seatNumbers = booking?.seatNumbers || ['A3', 'A4'];
-  const totalAmount = booking?.totalAmount || 1998;
+  const totalAmount = booking?.totalAmount != null ? booking.totalAmount : 0;
   const bookingDate = booking?.bookingDate ? formatDateFull(booking.bookingDate) : 'Today';
 
   const handlePrint = () => {
@@ -152,7 +152,7 @@ export function BookingConfirmationPage() {
                   ||| ||||| || |||||| |||| ||| ||||||| |||| || |||
                 </div>
                 <div className="font-mono" style={{ fontSize: '0.72rem', color: 'var(--ink-faint)', marginTop: '4px' }}>
-                  {bookingRef} · AUTH-TOKEN VERIFIED
+                  {bookingRef} · ISSUED: {bookingDate} · AUTH-TOKEN VERIFIED
                 </div>
               </div>
 

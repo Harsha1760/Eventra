@@ -42,6 +42,7 @@ export function AppRoutes() {
         <Route path="/events" element={<EventsPage />} />
         <Route path="/events/:id" element={<EventDetailsPage />} />
         <Route path="/venues" element={<VenuesPage />} />
+        <Route path="/venues/:id" element={<EventsPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
 

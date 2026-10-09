@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { formatDateShort, formatCurrency, formatTime } from '../../utils/formatters';
-import { Calendar, MapPin, ArrowRight, User } from 'lucide-react';
+import { MapPin, ArrowRight } from 'lucide-react';
 
 export function EventRow({ 
   event, 
@@ -18,12 +18,20 @@ export function EventRow({
   const venueName = event.venue?.name || 'Hyderabad Amphitheatre';
   const location = event.venue?.location ? `${event.venue.location} · Hyderabad` : 'Hyderabad';
   
-  // Starting price estimation if available on event or booking
-  const priceDisplay = bookingDetails?.totalAmount 
+  // Starting price derived from actual seat pricing or booking total
+  const validPrice =
+    typeof event.startingPrice === 'number' && event.startingPrice > 0
+      ? event.startingPrice
+      : typeof event.price === 'number' && event.price > 0
+        ? event.price
+        : null;
+
+  const priceLabel = variant === 'booking' ? 'Total Paid' : (validPrice != null ? 'From' : '');
+  const priceDisplay = bookingDetails?.totalAmount != null
     ? formatCurrency(bookingDetails.totalAmount)
-    : event.price 
-      ? formatCurrency(event.price)
-      : '₹799';
+    : validPrice != null
+      ? formatCurrency(validPrice)
+      : 'Pricing coming soon';
 
   const handleRowClick = () => {
     if (variant === 'booking' && bookingDetails) {
@@ -115,10 +123,17 @@ export function EventRow({
 
       {/* 3. Price Display */}
       <div className="event-row-price">
-        <span className="event-row-price-label">
-          {variant === 'booking' ? 'Total Paid' : 'From'}
+        {priceLabel ? (
+          <span className="event-row-price-label">
+            {priceLabel}
+          </span>
+        ) : null}
+        <span
+          className={validPrice != null || bookingDetails?.totalAmount != null ? "event-row-price-val font-mono" : "font-mono"}
+          style={validPrice == null && bookingDetails?.totalAmount == null ? { fontSize: '0.78rem', color: 'var(--ink-muted)' } : {}}
+        >
+          {priceDisplay}
         </span>
-        <span className="event-row-price-val font-mono">{priceDisplay}</span>
       </div>
 
       {/* 4. Action Button / Icon */}
