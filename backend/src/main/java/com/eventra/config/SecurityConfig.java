@@ -90,11 +90,12 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/users").permitAll()
 
-                // Public browsing endpoints
+                // Public browsing & AI chat endpoints
                 .requestMatchers(HttpMethod.GET, "/api/events/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/venues/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/seats/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/bookings/seat-check").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/chat").permitAll()
 
                 // Admin-only event management
                 .requestMatchers(HttpMethod.POST, "/api/events/**").hasRole("ADMIN")

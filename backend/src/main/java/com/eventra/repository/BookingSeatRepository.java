@@ -17,5 +17,16 @@ public interface BookingSeatRepository
 
     boolean existsBySeatId(Long seatId);
 
+    long countByBookingEventIdAndBookingStatus(Long eventId, String status);
+
+    @org.springframework.data.jpa.repository.Query(
+        "SELECT DISTINCT bs.seat.id FROM BookingSeat bs WHERE bs.booking.event.id = :eventId AND bs.booking.status = :status AND bs.seat.id IS NOT NULL"
+    )
+    java.util.List<Long> findDistinctBookedSeatIdsByEventIdAndStatus(
+            @org.springframework.data.repository.query.Param("eventId") Long eventId,
+            @org.springframework.data.repository.query.Param("status") String status);
+
+    java.util.List<BookingSeat> findByBookingEventIdAndBookingStatus(Long eventId, String status);
+
     java.util.List<BookingSeat> findByBookingId(Long bookingId);
 }
