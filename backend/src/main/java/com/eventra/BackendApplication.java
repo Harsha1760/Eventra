@@ -10,28 +10,47 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication
 public class BackendApplication {
 
-    static {
+    public static void main(String[] args) {
         loadDotenv();
+        SpringApplication.run(BackendApplication.class, args);
     }
 
-    public static void main(String[] args) {
-        SpringApplication.run(BackendApplication.class, args);
+    /**
+     * Normalizes a database URL to ensure it starts with jdbc: for MySQL Connector/J.
+     */
+    public static String normalizeJdbcUrl(String url) {
+        if (url == null) {
+            return null;
+        }
+        String normalized = url.trim();
+        if (normalized.isEmpty()) {
+            return "";
+        }
+        if (normalized.startsWith("mysql://")) {
+            normalized = "jdbc:" + normalized;
+        }
+        if (normalized.contains("ssl-mode=")) {
+            normalized = normalized.replace("ssl-mode=", "sslMode=");
+        }
+        return normalized;
     }
 
     /**
      * Loads local .env configuration files into Java System properties
      * if they exist and are not already set in the OS environment.
      */
-    private static void loadDotenv() {
-        String[] candidatePaths = {
-            ".env",
-            "backend/.env",
-            "../backend/.env",
-            "../.env"
+    public static void loadDotenv() {
+        String userDir = System.getProperty("user.dir", ".");
+        File[] candidateFiles = {
+            new File(userDir, ".env"),
+            new File(userDir, "backend/.env"),
+            new File(".env"),
+            new File("backend/.env"),
+            new File("../.env"),
+            new File("../backend/.env")
         };
 
-        for (String pathStr : candidatePaths) {
-            File file = new File(pathStr);
+        for (File file : candidateFiles) {
             if (file.exists() && file.isFile()) {
                 try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
                     String line;
@@ -47,6 +66,11 @@ public class BackendApplication {
                         if ((value.startsWith("\"") && value.endsWith("\""))
                                 || (value.startsWith("'") && value.endsWith("'"))) {
                             value = value.substring(1, value.length() - 1);
+                        }
+
+                        // Automatically normalize database URLs missing the jdbc: prefix
+                        if ("DB_URL".equalsIgnoreCase(key)) {
+                            value = normalizeJdbcUrl(value);
                         }
 
                         // Only set if not already defined in OS environment or system properties

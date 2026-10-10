@@ -41,6 +41,24 @@ class BackendApplicationTests {
     }
 
     @Test
+    void testNormalizeJdbcUrl() {
+        assertEquals(
+                "jdbc:mysql://localhost:3306/eventra",
+                BackendApplication.normalizeJdbcUrl("mysql://localhost:3306/eventra")
+        );
+        assertEquals(
+                "jdbc:mysql://host:15595/defaultdb?sslMode=REQUIRED",
+                BackendApplication.normalizeJdbcUrl("mysql://host:15595/defaultdb?ssl-mode=REQUIRED")
+        );
+        assertEquals(
+                "jdbc:mysql://host:15595/defaultdb?sslMode=REQUIRED",
+                BackendApplication.normalizeJdbcUrl("jdbc:mysql://host:15595/defaultdb?sslMode=REQUIRED")
+        );
+        assertEquals(null, BackendApplication.normalizeJdbcUrl(null));
+        assertEquals("", BackendApplication.normalizeJdbcUrl("   "));
+    }
+
+    @Test
     void testJwtTokenGenerationAndClaims() {
         String email = "testunit@eventra.com";
         String role = "USER";
