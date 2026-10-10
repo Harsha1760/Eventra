@@ -21,10 +21,23 @@ class BackendApplicationTests {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private org.flywaydb.core.Flyway flyway;
+
     @Test
     void contextLoads() {
         assertNotNull(jwtService);
         assertNotNull(passwordEncoder);
+        assertNotNull(flyway);
+    }
+
+    @Test
+    void testFlywayBaselineMigrationStatus() {
+        assertNotNull(flyway);
+        org.flywaydb.core.api.MigrationInfoService info = flyway.info();
+        assertNotNull(info);
+        assertNotNull(info.current(), "Flyway baseline or current migration should exist");
+        assertEquals("1", info.current().getVersion().getVersion(), "Current migration/baseline version should be 1");
     }
 
     @Test
